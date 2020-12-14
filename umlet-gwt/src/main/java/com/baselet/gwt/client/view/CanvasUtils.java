@@ -2,8 +2,9 @@ package com.baselet.gwt.client.view;
 
 import com.baselet.control.basics.geom.Rectangle;
 import com.baselet.control.constants.SharedConstants;
-import com.baselet.diagram.draw.helper.ColorOwn;
 import com.baselet.diagram.draw.helper.ColorOwn.Transparency;
+import com.baselet.diagram.draw.helper.theme.Theme;
+import com.baselet.diagram.draw.helper.theme.ThemeFactory;
 import com.baselet.element.GridElementUtils;
 import com.baselet.element.interfaces.Diagram;
 import com.baselet.gwt.client.base.Converter;
@@ -15,18 +16,28 @@ public class CanvasUtils {
 	private static final int EXPORT_BORDER = 10;
 
 	public static String createPngCanvasDataUrl(Diagram diagram) {
+		return createPngCanvasDataUrl(diagram, 1d);
+	}
+
+	public static String createPngCanvasDataUrl(Diagram diagram, double scaling) {
+		ThemeFactory.THEMES currentTheme = ThemeFactory.getActiveThemeEnum();
+		ThemeFactory.changeTheme(ThemeFactory.THEMES.LIGHT, null, false);
 		DrawCanvas pngCanvas = new DrawCanvas();
+		pngCanvas.setScaling(scaling);
 		// Calculate and set canvas width
-		Rectangle geRect = GridElementUtils.getGridElementsRectangle(diagram.getGridElements());
+		Rectangle geRect = GridElementUtils.getGridElementsRectangle(diagram.getGridElements(), scaling);
 		geRect.addBorder(EXPORT_BORDER);
 		pngCanvas.clearAndSetSize(geRect.getWidth(), geRect.getHeight());
 		// Fill Canvas white
-		pngCanvas.getContext2d().setFillStyle(Converter.convert(ColorOwn.WHITE));
+		pngCanvas.getContext2d().setFillStyle(Converter.convert(ThemeFactory.getCurrentTheme().getColor(Theme.PredefinedColors.WHITE)));
 		pngCanvas.getContext2d().fillRect(0, 0, pngCanvas.getWidth(), pngCanvas.getHeight());
 		// Draw Elements on Canvas and translate their position
 		pngCanvas.getContext2d().translate(-geRect.getX(), -geRect.getY());
 		pngCanvas.draw(false, diagram.getGridElementsByLayerLowestToHighest(), new SelectorNew(diagram)); // use a new selector which has nothing selected
-		return pngCanvas.toDataUrl("image/png");
+		ThemeFactory.changeTheme(currentTheme, null, true);
+		String dataUrl = pngCanvas.toDataUrl("image/png");
+		pngCanvas.setScaling(1.0d); // to prevent that the scaling is displayed in the actual view since the same diagram items are referenced
+		return dataUrl;
 	}
 
 	private static Canvas gridCanvas;
@@ -39,7 +50,7 @@ public class CanvasUtils {
 			int width = gridCanvas.getCoordinateSpaceWidth();
 			int height = gridCanvas.getCoordinateSpaceHeight();
 			Context2d backgroundContext = gridCanvas.getContext2d();
-			backgroundContext.setStrokeStyle(Converter.convert(ColorOwn.BLACK.transparency(Transparency.SELECTION_BACKGROUND)));
+			backgroundContext.setStrokeStyle(Converter.convert(ThemeFactory.getCurrentTheme().getColor(Theme.PredefinedColors.BLACK).transparency(Transparency.SELECTION_BACKGROUND)));
 			for (int i = 0; i < width; i += SharedConstants.DEFAULT_GRID_SIZE) {
 				drawLine(backgroundContext, i, 0, i, height);
 			}

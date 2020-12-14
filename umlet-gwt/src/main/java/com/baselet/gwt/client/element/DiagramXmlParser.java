@@ -3,15 +3,14 @@ package com.baselet.gwt.client.element;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import com.baselet.control.basics.geom.Rectangle;
 import com.baselet.control.constants.SharedConstants;
 import com.baselet.control.enums.ElementId;
 import com.baselet.element.interfaces.Diagram;
 import com.baselet.element.interfaces.GridElement;
 import com.baselet.gwt.client.base.Notification;
+import com.baselet.gwt.client.logging.CustomLogger;
+import com.baselet.gwt.client.logging.CustomLoggerFactory;
 import com.baselet.gwt.client.version.BuildInfoProperties;
 import com.google.gwt.http.client.URL;
 import com.google.gwt.user.client.Window;
@@ -33,7 +32,7 @@ public class DiagramXmlParser {
 	private static final String AMP = "&";
 	private static final String AMP_ENCODED = "&amp;";
 
-	private static final Logger log = LoggerFactory.getLogger(DiagramXmlParser.class);
+	private static final CustomLogger log = CustomLoggerFactory.getLogger(DiagramXmlParser.class);
 
 	private static final String DIAGRAM = "diagram";
 	private static final String ELEMENT = "element";

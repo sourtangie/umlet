@@ -7,6 +7,8 @@ import java.util.Locale;
 import com.baselet.control.basics.geom.PointDouble;
 import com.baselet.diagram.draw.DrawHandler;
 import com.baselet.diagram.draw.helper.ColorOwn;
+import com.baselet.diagram.draw.helper.theme.Theme;
+import com.baselet.diagram.draw.helper.theme.ThemeFactory;
 import com.baselet.element.facet.FirstRunKeyValueFacet;
 import com.baselet.element.facet.PropertiesParserState;
 
@@ -44,7 +46,7 @@ public class UpperRightSymbolFacet extends FirstRunKeyValueFacet {
 	public static void drawAndSetBuffer(PropertiesParserState state, UpperRightSymbolEnum symbol) {
 		DrawHandler drawer = state.getDrawer();
 		ColorOwn prevBackgroundColor = drawer.getBackgroundColor();
-		drawer.setBackgroundColor(ColorOwn.TRANSPARENT);
+		drawer.setBackgroundColor(ThemeFactory.getCurrentTheme().getColor(Theme.PredefinedColors.TRANSPARENT));
 		double eW = state.getGridElementSize().getWidth();
 		double fs = drawer.getFontSize();
 		if (symbol == UpperRightSymbolEnum.USECASE) {

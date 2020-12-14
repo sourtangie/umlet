@@ -16,6 +16,9 @@ import com.baselet.control.config.SharedConfig;
 import com.baselet.control.constants.MenuConstants;
 import com.baselet.control.constants.SharedConstants;
 import com.baselet.control.enums.Direction;
+import com.baselet.diagram.draw.helper.theme.Theme;
+import com.baselet.diagram.draw.helper.theme.ThemeChangeListener;
+import com.baselet.diagram.draw.helper.theme.ThemeFactory;
 import com.baselet.element.GridElementUtils;
 import com.baselet.element.Selector;
 import com.baselet.element.facet.common.GroupFacet;
@@ -23,8 +26,11 @@ import com.baselet.element.interfaces.CursorOwn;
 import com.baselet.element.interfaces.Diagram;
 import com.baselet.element.interfaces.GridElement;
 import com.baselet.element.sticking.StickableMap;
+import com.baselet.gwt.client.base.Converter;
 import com.baselet.gwt.client.base.Utils;
+import com.baselet.gwt.client.clipboard.ClipboardShortcutWrapper;
 import com.baselet.gwt.client.element.DiagramGwt;
+import com.baselet.gwt.client.file.FileChangeNotifier;
 import com.baselet.gwt.client.keyboard.Shortcut;
 import com.baselet.gwt.client.view.EventHandlingUtils.EventHandlingTarget;
 import com.baselet.gwt.client.view.interfaces.AutoresizeScrollDropTarget;
@@ -32,6 +38,7 @@ import com.baselet.gwt.client.view.interfaces.HasScrollPanel;
 import com.baselet.gwt.client.view.widgets.MenuPopup;
 import com.baselet.gwt.client.view.widgets.MenuPopup.MenuPopupItem;
 import com.baselet.gwt.client.view.widgets.propertiespanel.PropertiesTextArea;
+import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.event.dom.client.HasMouseOutHandlers;
@@ -45,36 +52,42 @@ import com.google.gwt.event.dom.client.MouseOverHandler;
 import com.google.gwt.event.shared.HandlerRegistration;
 import com.google.gwt.user.client.ui.SimplePanel;
 
-public abstract class DrawPanel extends SimplePanel implements CommandTarget, HasMouseOutHandlers, HasMouseOverHandlers, EventHandlingTarget, AutoresizeScrollDropTarget {
+public abstract class DrawPanel extends SimplePanel implements CommandTarget, HasMouseOutHandlers, HasMouseOverHandlers, EventHandlingTarget, AutoresizeScrollDropTarget, ThemeChangeListener {
 
-	private Diagram diagram = new DiagramGwt(new ArrayList<GridElement>());
+	protected Diagram diagram = new DiagramGwt(new ArrayList<GridElement>());
 
 	protected DrawCanvas canvas = new DrawCanvas();
+	protected boolean cursorWasMovedDuringDrag; // check if cursor was actually moved
 
 	SelectorNew selector;
 
 	CommandInvoker commandInvoker = CommandInvoker.getInstance();
 
+	ClipboardShortcutWrapper clipboardShortcutWrapper;
+
 	DrawPanel otherDrawFocusPanel;
 
 	HasScrollPanel scrollPanel;
 
-	private final MainView mainView;
+	protected final MainView mainView;
 
 	PropertiesTextArea propertiesPanel;
 
-	private final MenuPopup elementContextMenu;
-	private final MenuPopup diagramContextMenu;
+	private MenuPopup elementContextMenu;
+	private MenuPopup diagramContextMenu;
+	private Point lastContextMenuPosition;
 
-	private Set<Direction> resizeDirections = new HashSet<Direction>();
+	protected Set<Direction> resizeDirections = new HashSet<Direction>();
 
-	private final Map<GridElement, StickableMap> stickablesToMove = new HashMap<GridElement, StickableMap>();
+	protected final Map<GridElement, StickableMap> stickablesToMove = new HashMap<GridElement, StickableMap>();
 
 	public void setOtherDrawFocusPanel(DrawPanel otherDrawFocusPanel) {
 		this.otherDrawFocusPanel = otherDrawFocusPanel;
 	}
 
 	private Boolean focus = false;
+
+	protected final FileChangeNotifier fileChangeNotifier;
 
 	@Override
 	public void setFocus(boolean focus) {
@@ -93,6 +106,63 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 		return focus;
 	}
 
+	/* Changes the coordinates of GridElement e so that it is in the top left of targetPanel */
+	public static void snapElementToVisibleTopLeft(GridElement e, DrawPanel targetPanel) {
+		snapElementToVisibleTopLeft(e, targetPanel, SharedConstants.DEFAULT_GRID_SIZE, SharedConstants.DEFAULT_GRID_SIZE);
+	}
+
+	/* Changes the coordinates of GridElement e so that it is in the top left of targetPanel, with offset */
+	public static void snapElementToVisibleTopLeft(GridElement e, DrawPanel targetPanel, int xOffset, int yOffset) {
+		Rectangle visible = targetPanel.getVisibleBounds();
+		e.setLocation(visible.getX() + xOffset, visible.getY() + yOffset);
+	}
+
+	/* Changes the coordinates of GridElement in the elementList so that they are in the top left of targetPanel */
+	public static void snapElementsToVisibleTopLeft(List<GridElement> elementList, DrawPanel targetPanel) {
+		int xOffset = targetPanel.getVisibleBounds().x + targetPanel.getAbsoluteLeft();
+		int yOffset = targetPanel.getVisibleBounds().y + targetPanel.getAbsoluteTop();
+
+		snapElementsToPointPosition(elementList, targetPanel, new Point(xOffset + SharedConstants.DEFAULT_GRID_SIZE, yOffset + SharedConstants.DEFAULT_GRID_SIZE));
+	}
+
+	/* Changes the coordinates of GridElement in the elementList so that they match a point point coordinates must be absolute, not in draw panel coordinates, but the method accounts for a scrolled drawPanel */
+	public static void snapElementsToPointPosition(List<GridElement> elementList, DrawPanel targetPanel, Point point) {
+		// ensure that at least one element is there since later code relies on that
+		if (elementList.size() <= 0) {
+			return;
+		}
+
+		// Get the the maximum X and Y values. it will act as the "top left pivot point" of the elements
+		int pivotX = elementList.get(0).getRectangle().x;
+		int pivotY = elementList.get(0).getRectangle().y;
+
+		// find lowest x and y values, start at 1 since first values are already assigned
+		for (int i = 1; i < elementList.size(); i++) {
+			int xPosition = elementList.get(i).getRectangle().x;
+			int yPosition = elementList.get(i).getRectangle().y;
+			if (xPosition < pivotX) {
+				pivotX = xPosition;
+			}
+			if (yPosition < pivotY) {
+				pivotY = yPosition;
+			}
+		}
+
+		// Snap paste position to grid
+		int remX = point.getX() % SharedConstants.DEFAULT_GRID_SIZE;
+		int remY = point.getY() % SharedConstants.DEFAULT_GRID_SIZE;
+		point.setX(remX >= SharedConstants.DEFAULT_GRID_SIZE / 2 ? point.getX() - remX + SharedConstants.DEFAULT_GRID_SIZE : point.getX() - remX);
+		point.setY(remY >= SharedConstants.DEFAULT_GRID_SIZE / 2 ? point.getY() - remY + SharedConstants.DEFAULT_GRID_SIZE : point.getY() - remY);
+
+		// snap all elements to point, but relative to the pivot
+		for (GridElement e : elementList) {
+			int xOffset = e.getRectangle().x - pivotX;
+			int yOffset = e.getRectangle().y - pivotY;
+			Rectangle visible = targetPanel.getVisibleBounds();
+			e.setLocation(xOffset + point.getX() - targetPanel.getAbsoluteLeft(), yOffset + point.getY() - targetPanel.getAbsoluteTop());
+		}
+	}
+
 	public DrawPanel(final MainView mainView, final PropertiesTextArea propertiesPanel) {
 		this.setStylePrimaryName("canvasFocusPanel");
 
@@ -106,7 +176,34 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 			}
 		};
 
-		List<MenuPopupItem> diagramItems = Arrays.asList(
+		createMenuPopups();
+
+		this.add(canvas.getWidget());
+
+		clipboardShortcutWrapper = GWT.create(ClipboardShortcutWrapper.class);
+		fileChangeNotifier = GWT.create(FileChangeNotifier.class);
+
+		ThemeFactory.addListener(this);
+	}
+
+	protected List<MenuPopupItem> getStandardAdditionalElementMenuItems() {
+		return Arrays.asList(
+				new MenuPopupItem(MenuConstants.GROUP) {
+					@Override
+					public void execute() {
+						String unusedGroup = selector.getUnusedGroup();
+						commandInvoker.updateSelectedElementsProperty(DrawPanel.this, GroupFacet.KEY, unusedGroup);
+					}
+				}, new MenuPopupItem(MenuConstants.UNGROUP) {
+					@Override
+					public void execute() {
+						commandInvoker.updateSelectedElementsProperty(DrawPanel.this, GroupFacet.KEY, null);
+					}
+				});
+	}
+
+	protected List<MenuPopupItem> getStandardMenuPopupItems() {
+		return Arrays.asList(
 				new MenuPopupItem(MenuConstants.DELETE) {
 					@Override
 					public void execute() {
@@ -125,7 +222,7 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 				}, new MenuPopupItem(MenuConstants.PASTE) {
 					@Override
 					public void execute() {
-						commandInvoker.pasteElements(DrawPanel.this);
+						commandInvoker.pasteElements();
 					}
 				}, new MenuPopupItem(MenuConstants.SELECT_ALL) {
 					@Override
@@ -133,24 +230,6 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 						selector.select(diagram.getGridElements());
 					}
 				});
-		List<MenuPopupItem> elementItems = new ArrayList<MenuPopupItem>(diagramItems);
-		elementItems.addAll(Arrays.asList(
-				new MenuPopupItem(MenuConstants.GROUP) {
-					@Override
-					public void execute() {
-						Integer unusedGroup = selector.getUnusedGroup();
-						commandInvoker.updateSelectedElementsProperty(DrawPanel.this, GroupFacet.KEY, unusedGroup);
-					}
-				}, new MenuPopupItem(MenuConstants.UNGROUP) {
-					@Override
-					public void execute() {
-						commandInvoker.updateSelectedElementsProperty(DrawPanel.this, GroupFacet.KEY, null);
-					}
-				}));
-		diagramContextMenu = new MenuPopup(diagramItems);
-		elementContextMenu = new MenuPopup(elementItems);
-
-		this.add(canvas.getWidget());
 	}
 
 	@Override
@@ -162,13 +241,15 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 		else {
 			propertiesPanel.setGridElement(diagram, DrawPanel.this);
 		}
-		redraw();
+		redraw(true);
 	}
 
 	void keyboardMoveSelectedElements(int diffX, int diffY) {
 		List<GridElement> gridElements = selector.getSelectedElements();
 		moveElements(diffX, diffY, true, gridElements);
 		dragEndAndRedraw(gridElements);
+
+		// redraw(true, true);
 	}
 
 	void moveElements(int diffX, int diffY, boolean firstDrag, List<GridElement> elements) {
@@ -180,6 +261,15 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 				stickablesToMove.put(ge, getStickablesToMoveWhenElementsMove(ge, elements));
 			}
 			ge.setRectangleDifference(diffX, diffY, 0, 0, firstDrag, stickablesToMove.get(ge), false); // uses setLocationDifference() instead of drag() to avoid special handling (eg: from Relations)
+		}
+	}
+
+	public Point getLastContextMenuPosition() {
+		if (elementContextMenu.isShowing() || diagramContextMenu.isShowing()) {
+			return lastContextMenuPosition;
+		}
+		else {
+			return null;
 		}
 	}
 
@@ -298,7 +388,7 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 			stickablesToMove.remove(ge);
 			ge.dragEnd();
 		}
-		redraw();
+		redraw(true);
 	}
 
 	@Override
@@ -309,9 +399,11 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 				onMouseDown(element, isControlKeyDown);
 			}
 		});
+
 	}
 
 	void onMouseDown(final GridElement element, final boolean isControlKeyDown) {
+		cursorWasMovedDuringDrag = false;
 		if (isControlKeyDown) {
 			if (element != null) {
 				if (selector.isSelected(element)) {
@@ -349,6 +441,9 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 	}
 
 	void onMouseMoveDragging(Point dragStart, int diffX, int diffY, GridElement draggedGridElement, boolean isShiftKeyDown, boolean isCtrlKeyDown, boolean firstDrag) {
+		if (diffX != 0 || diffY != 0) {
+			cursorWasMovedDuringDrag = true;
+		}
 		if (firstDrag && draggedGridElement != null) { // if draggedGridElement == null the whole diagram is dragged and nothing has to be checked for sticking
 			stickablesToMove.put(draggedGridElement, getStickablesToMoveWhenElementsMove(draggedGridElement, Collections.<GridElement> emptyList()));
 		}
@@ -368,7 +463,7 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 		redraw(false);
 	}
 
-	private Point getRelativePoint(Point dragStart, GridElement draggedGridElement) {
+	protected Point getRelativePoint(Point dragStart, GridElement draggedGridElement) {
 		return new Point(dragStart.getX() - draggedGridElement.getRectangle().getX(), dragStart.getY() - draggedGridElement.getRectangle().getY());
 	}
 
@@ -401,6 +496,7 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 		else {
 			elementContextMenu.show(point);
 		}
+		lastContextMenuPosition = point; // used to determine paste positions
 	}
 
 	@Override
@@ -416,32 +512,28 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 			selector.select(diagram.getGridElements());
 		}
 		else if (Shortcut.COPY.matches(event)) {
-			commandInvoker.copySelectedElements(DrawPanel.this);
+			clipboardShortcutWrapper.onCopy(DrawPanel.this);
 		}
 		else if (Shortcut.CUT.matches(event)) {
-			commandInvoker.cutSelectedElements(DrawPanel.this);
+			clipboardShortcutWrapper.onCut(DrawPanel.this);
 		}
 		else if (Shortcut.PASTE.matches(event)) {
-			commandInvoker.pasteElements(DrawPanel.this);
+			clipboardShortcutWrapper.onPaste();
 		}
 		else if (Shortcut.SAVE.matches(event)) {
 			mainView.getSaveCommand().execute();
 		}
 		else if (Shortcut.MOVE_UP.matches(event)) {
 			keyboardMoveSelectedElements(0, -SharedConstants.DEFAULT_GRID_SIZE);
-			redraw();
 		}
 		else if (Shortcut.MOVE_DOWN.matches(event)) {
 			keyboardMoveSelectedElements(0, SharedConstants.DEFAULT_GRID_SIZE);
-			redraw();
 		}
 		else if (Shortcut.MOVE_LEFT.matches(event)) {
 			keyboardMoveSelectedElements(-SharedConstants.DEFAULT_GRID_SIZE, 0);
-			redraw();
 		}
 		else if (Shortcut.MOVE_RIGHT.matches(event)) {
 			keyboardMoveSelectedElements(SharedConstants.DEFAULT_GRID_SIZE, 0);
-			redraw();
 		}
 		else if (Shortcut.DISABLE_STICKING.matches(event)) {
 			SharedConfig.getInstance().setStickingEnabled(false);
@@ -455,6 +547,14 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 			event.preventDefault();
 		}
 	}
+
+    public static native void clearSelection() /*-{
+        if (window.getSelection) {
+            window.getSelection().removeAllRanges();
+        } else if (document.selection) {
+            document.selection.empty();
+        }
+    }-*/;
 
 	@Override
 	public void handleKeyUp(KeyUpEvent event) {
@@ -471,5 +571,26 @@ public abstract class DrawPanel extends SimplePanel implements CommandTarget, Ha
 	@Override
 	public HandlerRegistration addMouseOutHandler(MouseOutHandler handler) {
 		return addDomHandler(handler, MouseOutEvent.getType());
+	}
+
+	@Override
+	public void onThemeChange() {
+		List<GridElement> gridElements = diagram.getGridElements();
+		for (GridElement gridElement : gridElements) {
+			gridElement.updateModelFromText();
+		}
+		redraw(false);
+
+		elementContextMenu.getElement().getStyle().setColor(Converter.convert(ThemeFactory.getCurrentTheme().getColor(Theme.ColorStyle.DEFAULT_FOREGROUND)).value());
+		diagramContextMenu.getElement().getStyle().setColor(Converter.convert(ThemeFactory.getCurrentTheme().getColor(Theme.ColorStyle.DEFAULT_FOREGROUND)).value());
+		createMenuPopups();
+	}
+
+	private void createMenuPopups() {
+		List<MenuPopupItem> diagramItems = getStandardMenuPopupItems();
+		List<MenuPopupItem> elementItems = new ArrayList<MenuPopupItem>(diagramItems);
+		elementItems.addAll(getStandardAdditionalElementMenuItems());
+		diagramContextMenu = new MenuPopup(diagramItems);
+		elementContextMenu = new MenuPopup(elementItems);
 	}
 }

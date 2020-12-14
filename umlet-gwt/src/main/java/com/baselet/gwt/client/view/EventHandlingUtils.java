@@ -8,6 +8,7 @@ import com.baselet.control.basics.geom.Point;
 import com.baselet.control.basics.geom.Rectangle;
 import com.baselet.control.constants.SharedConstants;
 import com.baselet.element.interfaces.GridElement;
+import com.baselet.gwt.client.element.WebStorage;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.event.dom.client.ContextMenuEvent;
@@ -85,13 +86,22 @@ public class EventHandlingUtils {
 		FIRST, CONTINUOUS, NO
 	}
 
-	private static class DragCache {
+	public static class DragCache {
 		private DragStatus dragging = DragStatus.NO;
 		private Point moveStart;
 		private GridElement elementToDrag;
 		private EventHandlingTarget activePanel;
 		private EventHandlingTarget mouseContainingPanel;
 		private List<HandlerRegistration> nonTouchHandlers = new ArrayList<HandlerRegistration>();
+
+		public EventHandlingTarget getActivePanel() {
+			return activePanel;
+		}
+
+		public void setActivePanel(EventHandlingTarget activePanel) {
+			this.activePanel = activePanel;
+		}
+
 		/**
 		 * doubleclicks are only handled if the mouse has moved into the canvas before
 		 * this is necessary to void unwanted propagation of suggestbox-selections via doubleclick
@@ -102,8 +112,23 @@ public class EventHandlingUtils {
 		// private Timer menuShowTimer; //TODO doesn't really work at the moment (because some move and end events are not processed, therefore it's shown even if not wanted)
 	}
 
+	private static DragCache storageInstance;
+
+	public static DragCache getStorageInstance() {
+		return storageInstance;
+	}
+
 	public static void addEventHandler(final FocusPanel handlerTarget, final EventHandlingTarget... panels) {
 		final DragCache storage = new DragCache();
+		storageInstance = storage;
+
+		// Initializing active panel to be diagram panel
+		for (EventHandlingTarget panel : panels) {
+			if (panel instanceof DrawPanelDiagram) {
+				storage.activePanel = panel;
+				WebStorage.updateTargetPanel(panel);
+			}
+		}
 
 		for (final EventHandlingTarget panel : panels) {
 			storage.nonTouchHandlers.add(panel.addMouseOutHandler(new MouseOutHandler() {
@@ -131,11 +156,7 @@ public class EventHandlingUtils {
 					storage.nonTouchHandlers = null;
 				}
 				if (event.getTouches().length() == 1) { // only handle single finger touches (to allow zooming with 2 fingers)
-					final Point absolutePos = getPointAbsolute(event);
-					storage.activePanel = getPanelWhichContainsPoint(panels, absolutePos);
-					if (storage.activePanel != null) {
-						handleStart(panels, storage, handlerTarget, event, getPoint(storage.activePanel, event));
-					}
+					handleStart(panels, storage, handlerTarget, event);
 					// storage.menuShowTimer = new Timer() {
 					// @Override
 					// public void run() {
@@ -169,10 +190,7 @@ public class EventHandlingUtils {
 		storage.nonTouchHandlers.add(handlerTarget.addMouseDownHandler(new MouseDownHandler() {
 			@Override
 			public void onMouseDown(MouseDownEvent event) {
-				storage.activePanel = getPanelWhichContainsPoint(panels, getPointAbsolute(event));
-				if (storage.activePanel != null) {
-					handleStart(panels, storage, handlerTarget, event, getPoint(storage.activePanel, event));
-				}
+				handleStart(panels, storage, handlerTarget, event);
 			}
 		}));
 
@@ -264,7 +282,15 @@ public class EventHandlingUtils {
 		storage.dragging = DragStatus.NO;
 	}
 
-	private static void handleStart(EventHandlingTarget[] panels, final DragCache storage, FocusPanel handlerTarget, HumanInputEvent<?> event, Point p) {
+	private static void handleStart(EventHandlingTarget[] panels, final DragCache storage, FocusPanel handlerTarget, HumanInputEvent<?> event) {
+		storage.activePanel = getPanelWhichContainsPoint(panels, getPointAbsolute(event));
+		if (storage.activePanel == null) {
+			return;
+		}
+
+		WebStorage.updateTargetPanel(storage.activePanel);
+
+		Point p = getPoint(storage.activePanel, event);
 		// Notification.showInfo("DOWN " + p.x);
 		handlerTarget.setFocus(true);
 
