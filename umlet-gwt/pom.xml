@@ -98,7 +98,6 @@
 					</execution>
 				</executions>
 			</plugin>
-<<<<<<< HEAD
 			<!-- assemble UMLetino output as zip file -->
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
@@ -119,8 +118,6 @@
 					</execution>
 				</executions>
 			</plugin>
-=======
->>>>>>> upstream/master
 			<!-- start the GWT compiler during the build -->
 			<plugin>
 				<groupId>net.ltgt.gwt.maven</groupId>
