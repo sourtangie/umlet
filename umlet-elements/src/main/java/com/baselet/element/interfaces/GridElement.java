@@ -16,7 +16,7 @@ public interface GridElement extends HasPanelAttributes {
 
 	void setRectangle(Rectangle bounds);
 
-	String getGroup();
+	Integer getGroup();
 
 	void setLocationDifference(int diffx, int diffy);
 

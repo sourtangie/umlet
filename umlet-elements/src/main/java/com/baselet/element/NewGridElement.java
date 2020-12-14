@@ -28,8 +28,6 @@ import com.baselet.control.enums.LineType;
 import com.baselet.diagram.draw.DrawHandler;
 import com.baselet.diagram.draw.helper.ColorOwn;
 import com.baselet.diagram.draw.helper.ColorOwn.Transparency;
-import com.baselet.diagram.draw.helper.theme.Theme;
-import com.baselet.diagram.draw.helper.theme.ThemeFactory;
 import com.baselet.element.facet.Facet;
 import com.baselet.element.facet.KeyValueFacet;
 import com.baselet.element.facet.PropertiesParserState;
@@ -125,11 +123,9 @@ public abstract class NewGridElement implements GridElement {
 	}
 
 	protected void drawError(DrawHandler drawer, String errorText) {
-		ColorOwn red = ThemeFactory.getCurrentTheme().getColor(Theme.PredefinedColors.RED);
-
 		drawer.setEnableDrawing(true);
-		drawer.setForegroundColor(red);
-		drawer.setBackgroundColor(red.transparency(Transparency.SELECTION_BACKGROUND));
+		drawer.setForegroundColor(ColorOwn.RED);
+		drawer.setBackgroundColor(ColorOwn.RED.transparency(Transparency.SELECTION_BACKGROUND));
 		drawer.setLineWidth(0.2);
 		drawer.drawRectangle(0, 0, getRealSize().width, getRealSize().height); // draw dotted rect (to enforce background color even if element has no border)
 		resetAndDrawMetaDrawerContent(metaDrawer);
@@ -152,14 +148,12 @@ public abstract class NewGridElement implements GridElement {
 	protected abstract void drawCommonContent(PropertiesParserState state);
 
 	protected void resetAndDrawMetaDrawerContent(DrawHandler drawer) {
-		Theme currentTheme = ThemeFactory.getCurrentTheme();
-
 		drawer.clearCache();
-		drawer.setForegroundColor(currentTheme.getColor(Theme.ColorStyle.SELECTION_FG));
-		drawer.setBackgroundColor(currentTheme.getColor(Theme.ColorStyle.SELECTION_BG));
+		drawer.setForegroundColor(ColorOwn.TRANSPARENT);
+		drawer.setBackgroundColor(ColorOwn.SELECTION_BG);
 		drawer.drawRectangle(0, 0, getRealSize().width, getRealSize().height);
 		if (SharedConfig.getInstance().isDev_mode()) {
-			drawer.setForegroundColor(currentTheme.getColor(Theme.PredefinedColors.BLACK));
+			drawer.setForegroundColor(ColorOwn.BLACK);
 			drawer.setFontSize(10.5);
 			drawer.print(getId().toString(), new PointDouble(getRealSize().width - 3, getRealSize().height - 2), AlignHorizontal.RIGHT);
 		}
@@ -260,8 +254,7 @@ public abstract class NewGridElement implements GridElement {
 		Rectangle rect = new Rectangle(0, 0, getRealSize().width, getRealSize().height);
 		StickingPolygon poly = this.generateStickingBorder(rect);
 		drawer.setLineType(LineType.DASHED);
-		drawer.setForegroundColor(ThemeFactory.getCurrentTheme().getColor(Theme.ColorStyle.STICKING_POLYGON));
-		drawer.setBackgroundColor(ThemeFactory.getCurrentTheme().getColor(Theme.PredefinedColors.TRANSPARENT));
+		drawer.setForegroundColor(ColorOwn.STICKING_POLYGON);
 		Vector<? extends Line> lines = poly.getStickLines();
 		drawer.drawLines(lines.toArray(new Line[lines.size()]));
 		drawer.setLineType(LineType.SOLID);
@@ -352,7 +345,7 @@ public abstract class NewGridElement implements GridElement {
 	}
 
 	@Override
-	public String getGroup() {
+	public Integer getGroup() {
 		return state.getFacetResponse(GroupFacet.class, null);
 	}
 

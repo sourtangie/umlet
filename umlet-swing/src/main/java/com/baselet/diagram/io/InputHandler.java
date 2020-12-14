@@ -45,7 +45,7 @@ public class InputHandler extends DefaultHandler {
 	private String panel_attributes;
 	private String additional_attributes;
 
-	private String currentGroup;
+	private Integer currentGroup;
 	private final DiagramHandler handler;
 
 	// to be backward compatible - add list of old elements that were removed so that they are ignored when loading old files

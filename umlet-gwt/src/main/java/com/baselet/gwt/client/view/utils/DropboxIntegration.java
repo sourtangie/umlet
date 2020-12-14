@@ -1,9 +1,10 @@
 package com.baselet.gwt.client.view.utils;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.baselet.gwt.client.base.Notification;
 import com.baselet.gwt.client.element.DiagramXmlParser;
-import com.baselet.gwt.client.logging.CustomLogger;
-import com.baselet.gwt.client.logging.CustomLoggerFactory;
 import com.baselet.gwt.client.view.DrawPanel;
 import com.google.gwt.http.client.Request;
 import com.google.gwt.http.client.RequestBuilder;
@@ -15,7 +16,7 @@ import com.google.gwt.user.client.Window;
 
 public class DropboxIntegration {
 
-	private final CustomLogger log = CustomLoggerFactory.getLogger(DropboxIntegration.class);
+	private final Logger log = LoggerFactory.getLogger(DropboxIntegration.class);
 
 	private final DrawPanel diagramPanel;
 

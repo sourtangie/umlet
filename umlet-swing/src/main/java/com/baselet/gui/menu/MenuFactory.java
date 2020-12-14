@@ -76,8 +76,7 @@ import com.baselet.gui.command.RemoveElement;
 
 public class MenuFactory {
 
-	public void doAction(final String menuItem, final Object arg_param) {
-		final String param = arg_param == null ? null : arg_param.toString();
+	public void doAction(final String menuItem, final Object param) {
 		// AB: Hopefully this will resolve threading issues and work for eclipse AND standalone
 		SwingUtilities.invokeLater(new Runnable() {
 			@Override
@@ -98,7 +97,7 @@ public class MenuFactory {
 					diagramHandler.doCloseAndAddNewIfNoLeft();
 				}
 				else if (menuItem.equals(RECENT_FILES)) {
-					main.doOpen(param);
+					main.doOpen((String) param);
 				}
 				else if (menuItem.equals(GENERATE_CLASS)) {
 					new ClassDiagramConverter().createClassDiagrams(ClassChooser.getFilesToOpen());
@@ -116,7 +115,7 @@ public class MenuFactory {
 					ExportHandler.getInstance().export();
 				}
 				else if (menuItem.equals(EXPORT_AS) && diagramHandler != null) {
-					String exportedDiagramFilePath = diagramHandler.doSaveAs(param);
+					String exportedDiagramFilePath = diagramHandler.doSaveAs((String) param);
 					if (exportedDiagramFilePath != null && !exportedDiagramFilePath.isEmpty()) {
 						ExportHandler.getInstance().setExportedFilePath(exportedDiagramFilePath);
 					}
@@ -181,7 +180,7 @@ public class MenuFactory {
 					if (gui.getCurrentCustomHandler().closeEntity()) {
 						gui.setCustomPanelEnabled(true);
 						gui.getCurrentCustomHandler().getPanel().setCustomElementIsNew(true);
-						gui.getCurrentCustomHandler().newEntity(param);
+						gui.getCurrentCustomHandler().newEntity((String) param);
 					}
 				}
 				else if (menuItem.equals(EDIT_SELECTED)) {
@@ -216,19 +215,19 @@ public class MenuFactory {
 					AboutDialog.show();
 				}
 				else if (menuItem.equals(SET_FOREGROUND_COLOR) && actualHandler != null && actualSelector != null) {
-					actualHandler.getController().executeCommand(new ChangeElementSetting(FacetConstants.FOREGROUND_COLOR_KEY, param, actualSelector.getSelectedElements()));
+					actualHandler.getController().executeCommand(new ChangeElementSetting(FacetConstants.FOREGROUND_COLOR_KEY, (String) param, actualSelector.getSelectedElements()));
 				}
 				else if (menuItem.equals(SET_BACKGROUND_COLOR) && actualHandler != null && actualSelector != null) {
-					actualHandler.getController().executeCommand(new ChangeElementSetting(FacetConstants.BACKGROUND_COLOR_KEY, param, actualSelector.getSelectedElements()));
+					actualHandler.getController().executeCommand(new ChangeElementSetting(FacetConstants.BACKGROUND_COLOR_KEY, (String) param, actualSelector.getSelectedElements()));
 				}
 				else if (menuItem.equals(ALIGN) && actualHandler != null && actualSelector != null) {
 					List<GridElement> v = actualSelector.getSelectedElements();
 					if (v.size() > 0) {
-						actualHandler.getController().executeCommand(new Align(v, actualSelector.getDominantEntity(), param));
+						actualHandler.getController().executeCommand(new Align(v, actualSelector.getDominantEntity(), (String) param));
 					}
 				}
 				else if (menuItem.equals(LAYER) && actualHandler != null && actualSelector != null) {
-					int change = LAYER_DOWN.equals(param) ? -1 : +1;
+					int change = param.equals(LAYER_DOWN) ? -1 : +1;
 					Map<GridElement, String> valueMap = new HashMap<GridElement, String>();
 					for (GridElement e : actualSelector.getSelectedElements()) {
 						valueMap.put(e, Integer.toString(e.getLayer() + change));

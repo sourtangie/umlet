@@ -3,9 +3,8 @@ package com.baselet.element.elementnew.plot.drawer;
 import com.baselet.control.basics.geom.Dimension;
 import com.baselet.control.basics.geom.Rectangle;
 import com.baselet.diagram.draw.DrawHandler;
+import com.baselet.diagram.draw.helper.ColorOwn;
 import com.baselet.diagram.draw.helper.ColorOwn.Transparency;
-import com.baselet.diagram.draw.helper.theme.Theme;
-import com.baselet.diagram.draw.helper.theme.ThemeFactory;
 
 /**
  * <pre>
@@ -195,11 +194,10 @@ public class Canvas {
 	}
 
 	public void draw(DrawHandler baseDrawHandler) {
-		Theme currentTheme = ThemeFactory.getCurrentTheme();
-		baseDrawHandler.setBackgroundColor(currentTheme.getColor(Theme.PredefinedColors.TRANSPARENT));
-		baseDrawHandler.setForegroundColor(currentTheme.getColor(Theme.PredefinedColors.RED).transparency(Transparency.BACKGROUND));
+		baseDrawHandler.setBackgroundColor(ColorOwn.TRANSPARENT);
+		baseDrawHandler.setForegroundColor(ColorOwn.RED.transparency(Transparency.BACKGROUND));
 		baseDrawHandler.drawRectangle(getOuterLeftPos(), getOuterUpPos(), getOuterRightPos() - getOuterLeftPos() - 1, getOuterDownPos() - getOuterUpPos());
-		baseDrawHandler.setForegroundColor(currentTheme.getColor(Theme.PredefinedColors.BLUE));
+		baseDrawHandler.setForegroundColor(ColorOwn.BLUE);
 		baseDrawHandler.drawRectangle(getInnerLeftPos(), getInnerUpPos(), getInnerRightPos() - getInnerLeftPos(), getInnerDownPos() - getInnerUpPos());
 	}
 

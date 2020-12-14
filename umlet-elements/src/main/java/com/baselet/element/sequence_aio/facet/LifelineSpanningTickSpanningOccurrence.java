@@ -86,7 +86,8 @@ public interface LifelineSpanningTickSpanningOccurrence {
 			return bottomPadding;
 		}
 
-		public static Comparator<ContainerPadding> getContainerStartTickAscComparator() {
+		public static Comparator<ContainerPadding> getContainerStartTickAscComparator()
+		{
 			return new Comparator<ContainerPadding>() {
 				@Override
 				public int compare(ContainerPadding o1, ContainerPadding o2) {
@@ -95,7 +96,8 @@ public interface LifelineSpanningTickSpanningOccurrence {
 			};
 		}
 
-		public static Comparator<ContainerPadding> getContainerStartTickLifelineAscComparator() {
+		public static Comparator<ContainerPadding> getContainerStartTickLifelineAscComparator()
+		{
 			return new Comparator<ContainerPadding>() {
 				@Override
 				public int compare(ContainerPadding o1, ContainerPadding o2) {
@@ -110,7 +112,8 @@ public interface LifelineSpanningTickSpanningOccurrence {
 			};
 		}
 
-		public static Comparator<ContainerPadding> getContainerEndTickAscComparator() {
+		public static Comparator<ContainerPadding> getContainerEndTickAscComparator()
+		{
 			return new Comparator<ContainerPadding>() {
 				@Override
 				public int compare(ContainerPadding o1, ContainerPadding o2) {

@@ -1,7 +1,9 @@
 package com.baselet.control.enums;
 
 public enum FormatLabels {
-	UNDERLINE("_"), BOLD("*"), ITALIC("/");
+	UNDERLINE("_"),
+	BOLD("*"),
+	ITALIC("/");
 
 	private String value;
 

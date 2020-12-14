@@ -28,7 +28,8 @@ public class ExecutionSpecification {
 		endTick = end;
 	}
 
-	public boolean enclosesTick(int tick) {
+	public boolean enclosesTick(int tick)
+	{
 		return startTick <= tick && tick <= endTick;
 	}
 }

@@ -5,8 +5,7 @@ import java.util.List;
 import com.baselet.control.HandlerElementMap;
 import com.baselet.control.enums.AlignHorizontal;
 import com.baselet.custom.CompileError;
-import com.baselet.diagram.draw.helper.theme.Theme;
-import com.baselet.diagram.draw.helper.theme.ThemeFactory;
+import com.baselet.diagram.draw.helper.ColorOwn;
 import com.baselet.diagram.draw.swing.DrawHandlerSwing;
 import com.baselet.element.interfaces.GridElement;
 
@@ -30,7 +29,7 @@ public class CustomElementWithErrors extends CustomElement {
 		DrawHandlerSwing drawer = new DrawHandlerSwing(this);
 		drawer.setGraphics(g2);
 		drawer.setHandler(HandlerElementMap.getHandlerForElement(this));
-		drawer.setForegroundColor(ThemeFactory.getCurrentTheme().getColor(Theme.PredefinedColors.RED));
+		drawer.setForegroundColor(ColorOwn.RED);
 		drawer.drawRectangle(0, 0, getRealSize().width, getRealSize().height);
 		if (errors != null) {
 			double y = textHeight();

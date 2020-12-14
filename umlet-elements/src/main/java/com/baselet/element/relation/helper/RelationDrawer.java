@@ -12,8 +12,6 @@ import com.baselet.control.enums.AlignHorizontal;
 import com.baselet.control.enums.Direction;
 import com.baselet.diagram.draw.DrawHandler;
 import com.baselet.diagram.draw.helper.ColorOwn;
-import com.baselet.diagram.draw.helper.theme.Theme;
-import com.baselet.diagram.draw.helper.theme.ThemeFactory;
 import com.baselet.element.sticking.PointDoubleIndexed;
 
 public class RelationDrawer {
@@ -164,7 +162,7 @@ public class RelationDrawer {
 			PointDoubleIndexed pointIndex = (PointDoubleIndexed) point;
 
 			ColorOwn bg = drawer.getBackgroundColor();
-			drawer.setBackgroundColor(ThemeFactory.getCurrentTheme().getColor(Theme.PredefinedColors.TRANSPARENT));
+			drawer.setBackgroundColor(ColorOwn.TRANSPARENT);
 
 			Direction directionOfCircle = line.getDirectionOfLine(drawOnStart);
 			if (directionOfCircle == Direction.RIGHT) {

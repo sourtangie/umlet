@@ -18,14 +18,16 @@ public class Macro extends Command {
 
 	@Override
 	public void execute(DiagramHandler handler) {
-		for (Command c : _commands) {
+		for (int i = 0; i < _commands.size(); i++) {
+			Command c = _commands.get(i);
 			c.execute(handler);
 		}
 	}
 
 	@Override
 	public void redo(DiagramHandler handler) {
-		for (Command c : _commands) {
+		for (int i = 0; i < _commands.size(); i++) {
+			Command c = _commands.get(i);
 			c.redo(handler);
 		}
 	}
@@ -33,7 +35,8 @@ public class Macro extends Command {
 	@Override
 	public void undo(DiagramHandler handler) {
 		super.undo(handler);
-		for (Command c : _commands) {
+		for (int i = 0; i < _commands.size(); i++) {
+			Command c = _commands.get(i);
 			c.undo(handler);
 		}
 	}

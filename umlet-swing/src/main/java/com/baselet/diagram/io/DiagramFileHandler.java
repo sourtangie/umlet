@@ -98,8 +98,7 @@ public class DiagramFileHandler {
 		File initialDirectory;
 		if (filePath != null && !filePath.isEmpty()) {
 			initialDirectory = new File(directory(filePath));
-		}
-		else {
+		} else {
 			initialDirectory = calcInitialDir(exportCall);
 		}
 
@@ -109,8 +108,7 @@ public class DiagramFileHandler {
 		File selectedFile;
 		if (filePath != null && !filePath.isEmpty()) {
 			selectedFile = new File(filename(filePath));
-		}
-		else {
+		} else {
 			selectedFile = new File(CurrentDiagram.getInstance().getDiagramHandler().getName());
 		}
 		fileChooser.setSelectedFile(selectedFile);
@@ -395,8 +393,7 @@ public class DiagramFileHandler {
 		if (extensionPos > 0) {
 			String filenameWithoutExtension = filename.substring(0, extensionPos);
 			return filenameWithoutExtension;
-		}
-		else {
+		} else {
 			return filename;
 		}
 	}

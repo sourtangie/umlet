@@ -46,8 +46,6 @@
 		<module>umlet-eclipse-feature</module>
 		<module>umlet-eclipse-p2</module>
 		<module>umlet-gwt</module>
-		<module>umlet-web</module>
-		<module>umlet-vscode</module>
 	</modules>
 
 	<dependencies>
@@ -60,7 +58,7 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<version>4.13.1</version>
+			<version>4.12</version>
 			<scope>test</scope>
 		</dependency>
 		<!-- better assertions than junit and hamcrest; update to v2.3.0 if Umlet switches to Java7 -->

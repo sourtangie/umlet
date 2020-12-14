@@ -1,25 +1,20 @@
 package com.baselet.gwt.client.view;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.vectomatic.file.FileUploadExt;
 
 import com.baselet.control.config.SharedConfig;
-import com.baselet.diagram.draw.helper.theme.Theme;
-import com.baselet.diagram.draw.helper.theme.ThemeChangeListener;
-import com.baselet.diagram.draw.helper.theme.ThemeFactory;
 import com.baselet.element.interfaces.Diagram;
-import com.baselet.gwt.client.base.Converter;
 import com.baselet.gwt.client.base.Notification;
+import com.baselet.gwt.client.element.BrowserStorage;
 import com.baselet.gwt.client.element.DiagramXmlParser;
-import com.baselet.gwt.client.element.WebStorage;
-import com.baselet.gwt.client.logging.CustomLogger;
-import com.baselet.gwt.client.logging.CustomLoggerFactory;
-import com.baselet.gwt.client.view.commands.SaveCommand;
 import com.baselet.gwt.client.view.panel.wrapper.AutoResizeScrollDropPanel;
 import com.baselet.gwt.client.view.panel.wrapper.FileOpenHandler;
+import com.baselet.gwt.client.view.utils.DiagramLoader;
 import com.baselet.gwt.client.view.utils.DropboxIntegration;
-import com.baselet.gwt.client.view.utils.StartupDiagramLoader;
 import com.baselet.gwt.client.view.widgets.DownloadPopupPanel;
-import com.baselet.gwt.client.view.widgets.FilenameAndScaleHolder;
+import com.baselet.gwt.client.view.widgets.FilenameHolder;
 import com.baselet.gwt.client.view.widgets.SaveDialogBox;
 import com.baselet.gwt.client.view.widgets.SaveDialogBox.Callback;
 import com.baselet.gwt.client.view.widgets.ShortcutDialogBox;
@@ -28,7 +23,6 @@ import com.google.gwt.core.client.GWT;
 import com.google.gwt.core.client.Scheduler;
 import com.google.gwt.core.client.Scheduler.ScheduledCommand;
 import com.google.gwt.core.client.ScriptInjector;
-import com.google.gwt.dom.client.DivElement;
 import com.google.gwt.dom.client.Document;
 import com.google.gwt.dom.client.Style.Unit;
 import com.google.gwt.event.dom.client.ChangeEvent;
@@ -57,9 +51,8 @@ import com.google.gwt.user.client.ui.RootPanel;
 import com.google.gwt.user.client.ui.SimpleLayoutPanel;
 import com.google.gwt.user.client.ui.SplitLayoutPanel;
 import com.google.gwt.user.client.ui.Widget;
-import com.google.gwt.dom.client.Element;
 
-public class MainView extends Composite implements ThemeChangeListener {
+public class MainView extends Composite {
 
 	private static MainViewUiBinder uiBinder = GWT.create(MainViewUiBinder.class);
 
@@ -76,7 +69,7 @@ public class MainView extends Composite implements ThemeChangeListener {
 	FocusPanel mainPanel;
 
 	@UiField(provided = true)
-	protected SplitLayoutPanel diagramPaletteSplitter = new SplitLayoutPanel(4) {
+	SplitLayoutPanel diagramPaletteSplitter = new SplitLayoutPanel(4) {
 		@Override
 		public void onResize() {
 			super.onResize();
@@ -86,9 +79,6 @@ public class MainView extends Composite implements ThemeChangeListener {
 
 	@UiField
 	FlowPanel menuPanel;
-
-	@UiField
-	DivElement propertiesDiv;
 
 	@UiField
 	FlowPanel restoreMenuPanel;
@@ -126,15 +116,30 @@ public class MainView extends Composite implements ThemeChangeListener {
 	private final FileUploadExt hiddenUploadButton = new FileUploadExt();
 	private final FileOpenHandler handler;
 
-	private final CustomLogger log = CustomLoggerFactory.getLogger(MainView.class);
+	private final Logger log = LoggerFactory.getLogger(MainView.class);
 
 	private final DropboxIntegration dropboxInt;
 
-	private final FilenameAndScaleHolder lastExportFilename = new FilenameAndScaleHolder("");
+	private final FilenameHolder lastExportFilename = new FilenameHolder("");
 
-	private final SaveCommand saveCommand;
+	private final ScheduledCommand saveCommand = new ScheduledCommand() {
+		private final SaveDialogBox saveDialogBox = new SaveDialogBox(new Callback() {
+			@Override
+			public void callback(final String chosenName) {
+				boolean itemIsNewlyAdded = BrowserStorage.getSavedDiagram(chosenName) == null;
+				BrowserStorage.addSavedDiagram(chosenName, DiagramXmlParser.diagramToXml(diagramPanel.getDiagram()));
+				if (itemIsNewlyAdded) {
+					addRestoreMenuItem(chosenName);
+				}
+				Notification.showInfo("Diagram saved as: " + chosenName);
+			}
+		});
 
-	private final DownloadPopupPanel popupPanel;
+		@Override
+		public void execute() {
+			saveDialogBox.clearAndCenter();
+		}
+	};
 
 	private final ScheduledCommand exportToDropbox = new ScheduledCommand() {
 		private final SaveDialogBox saveDialogBox = new SaveDialogBox(new Callback() {
@@ -153,6 +158,10 @@ public class MainView extends Composite implements ThemeChangeListener {
 		}
 	};
 
+	public ScheduledCommand getSaveCommand() {
+		return saveCommand;
+	}
+
 	public void setDiagram(Diagram diagram) {
 		diagramPanel.setDiagram(diagram);
 	}
@@ -162,13 +171,8 @@ public class MainView extends Composite implements ThemeChangeListener {
 		diagramPaletteSplitter.setWidgetSize(palettePropertiesSplitter, 0.0);
 	}
 
-	public SaveCommand getSaveCommand() {
-		return saveCommand;
-	}
-
 	public MainView() {
 		initWidget(uiBinder.createAndBindUi(this));
-
 		diagramPaletteSplitter.setWidgetToggleDisplayAllowed(palettePropertiesSplitter, true);
 		diagramPaletteSplitter.setWidgetSnapClosedSize(palettePropertiesSplitter, 100);
 		diagramPaletteSplitter.setWidgetMinSize(palettePropertiesSplitter, 200);
@@ -183,16 +187,10 @@ public class MainView extends Composite implements ThemeChangeListener {
 		diagramScrollPanel = new AutoResizeScrollDropPanel(diagramPanel);
 		paletteScrollPanel = new AutoResizeScrollDropPanel(palettePanel);
 		updateNotificationPosition();
-		ThemeFactory.addListener(this);
 
-		for (String diagramName : WebStorage.getSavedDiagramKeys()) {
+		for (String diagramName : BrowserStorage.getSavedDiagramKeys()) {
 			addRestoreMenuItem(diagramName);
 		}
-
-		saveCommand = GWT.create(SaveCommand.class);
-		saveCommand.init(this);
-
-		onThemeChange();
 
 		log.trace("Main View initialized");
 
@@ -227,15 +225,14 @@ public class MainView extends Composite implements ThemeChangeListener {
 		dropboxInt.exposeDropboxImportJSCallback(dropboxInt);
 		dropboxInt.exposeDropboxShowNotification(dropboxInt);
 
-		StartupDiagramLoader startupDiagramLoader = GWT.create(StartupDiagramLoader.class);
-		startupDiagramLoader.loadDiagram(this);
-
-		onThemeChange();
-		popupPanel = GWT.create(DownloadPopupPanel.class);
-		popupPanel.init((DrawPanelDiagram) diagramPanel);
+		// if uxf parameter is set, a GET request is made to get and load the diagram from the specified URL
+		String uxfStartup = Window.Location.getParameter("uxf");
+		if (uxfStartup != null) {
+			DiagramLoader.getFromUrl(uxfStartup, this);
+		}
 	}
 
-	public void addRestoreMenuItem(final String chosenName) {
+	private void addRestoreMenuItem(final String chosenName) {
 		final HorizontalPanel hp = new HorizontalPanel();
 
 		Label label = new Label(chosenName);
@@ -244,7 +241,7 @@ public class MainView extends Composite implements ThemeChangeListener {
 		label.addClickHandler(new ClickHandler() {
 			@Override
 			public void onClick(ClickEvent event) {
-				diagramPanel.setDiagram(DiagramXmlParser.xmlToDiagram(WebStorage.getSavedDiagram(chosenName)));
+				diagramPanel.setDiagram(DiagramXmlParser.xmlToDiagram(BrowserStorage.getSavedDiagram(chosenName)));
 				Notification.showInfo("Diagram opened: " + chosenName);
 			}
 		});
@@ -255,7 +252,7 @@ public class MainView extends Composite implements ThemeChangeListener {
 			@Override
 			public void onClick(ClickEvent event) {
 				if (Window.confirm("Delete saved diagram " + chosenName)) {
-					WebStorage.removeSavedDiagram(chosenName);
+					BrowserStorage.removeSavedDiagram(chosenName);
 					restoreMenuPanel.remove(hp);
 					Notification.showInfo("Deleted diagram: " + chosenName);
 				}
@@ -274,17 +271,15 @@ public class MainView extends Composite implements ThemeChangeListener {
 
 	@UiHandler("exportMenuItem")
 	void onExportMenuItemClick(ClickEvent event) {
-		initialiseExportDialog();
+		String uxfUrl = "data:text/xml;charset=utf-8," + DiagramXmlParser.diagramToXml(true, true, diagramPanel.getDiagram());
+		log.info("Exporting: " + uxfUrl);
+		String pngUrl = CanvasUtils.createPngCanvasDataUrl(diagramPanel.getDiagram());
+		new DownloadPopupPanel(uxfUrl, pngUrl, lastExportFilename).center();
 	}
 
 	@UiHandler("importDropboxMenuItem")
 	void onImportDropboxMenuItemClick(ClickEvent event) {
 		dropboxInt.openDropboxImport();
-	}
-
-	public void initialiseExportDialog() {
-		popupPanel.prepare(lastExportFilename);
-		popupPanel.center();
 	}
 
 	@UiHandler("exportDropboxMenuItem")
@@ -327,51 +322,5 @@ public class MainView extends Composite implements ThemeChangeListener {
 				RootPanel.get("featurewarning").getElement().getStyle().setMarginLeft(menuPanel.getOffsetWidth(), Unit.PX);
 			}
 		});
-	}
-
-	public DrawPanel getDiagramPanel() {
-		return diagramPanel;
-	}
-
-	@Override
-	public void onThemeChange() {
-		String backgroundColor = Converter.convert(ThemeFactory.getCurrentTheme().getColor(Theme.ColorStyle.DEFAULT_BACKGROUND)).value();
-		String foregroundColor = Converter.convert(ThemeFactory.getCurrentTheme().getColor(Theme.ColorStyle.DEFAULT_FOREGROUND)).value();
-		String splitterColor = Converter.convert(ThemeFactory.getCurrentTheme().getColor(Theme.ColorStyle.DEFAULT_SPLITTER_COLOR)).value();
-		paletteChooser.getElement().getStyle().setBackgroundColor(backgroundColor);
-		paletteChooser.getElement().getStyle().setColor(foregroundColor);
-
-		// Splitter between main-canvas and east side
-		diagramPaletteSplitter.getWidget(3).getElement().getStyle().setBackgroundColor(splitterColor);
-
-		// Splitter between palette chooser and textarea
-		palettePropertiesSplitter.getWidget(1).getElement().getStyle().setBackgroundColor(splitterColor);
-
-		propertiesDiv.getStyle().setBackgroundColor(splitterColor);
-		propertiesDiv.getStyle().setColor(foregroundColor);
-		propertiesPanel.getElement().getStyle().setBackgroundColor(backgroundColor);
-		propertiesPanel.getElement().getStyle().setColor(foregroundColor);
-		propertiesPanel.getElement().getStyle().setBorderColor(backgroundColor);
-
-		mainPanel.getElement().getStyle().setBackgroundColor(backgroundColor);
-		mainPanel.getElement().getStyle().setColor(foregroundColor);
-
-		// There seems to be no better way to retrieve the needed rows to color their hover effect
-		for (int i = 0; i < menuPanel.getWidgetCount(); i++) {
-			Element element = menuPanel.getWidget(i).getElement();
-			if (element.getClassName().contains("com-baselet-gwt-client-view-MainView_MainViewUiBinderImpl_GenCss_style-menuItem")) {
-				element.removeClassName("dark");
-				element.removeClassName("light");
-				switch (ThemeFactory.getActiveThemeEnum()) {
-					case DARK:
-						element.addClassName("dark");
-						break;
-					case LIGHT:
-					default:
-						element.addClassName("light");
-						break;
-				}
-			}
-		}
 	}
 }
